@@ -49,6 +49,7 @@ void *kmalloc(unsigned int size)
 	{
 		return NULL;
 	}
+	
 	for (int j = nextAccssedPageIndex; j < NUM_OF_PAGES; j++)
 	{
 		if (kernelHeapPages[j].isFree == 1)
@@ -72,6 +73,8 @@ void *kmalloc(unsigned int size)
 			break;
 		}
 	}
+
+
 	//
 	for (int j = startIndex; j <= endIndex; j++)
 	{
@@ -152,10 +155,12 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 	struct Frame_Info *currentFrame;
 	uint32 *ptr_page_table;
 
-	for (uint32 i = KERNEL_HEAP_START; i <= nextAccssedPageIndex; i += PAGE_SIZE){
+	for (uint32 i = KERNEL_HEAP_START; i <= nextAccssedPageIndex; i += PAGE_SIZE)
+	{
 		currentFrame = NULL;
-		currentFrame = get_frame_info(ptr_page_directory, (void*) i, &ptr_page_table);
-		if(currentFrame != NULL && to_physical_address(currentFrame) == physical_address){
+		currentFrame = get_frame_info(ptr_page_directory, (void *)i, &ptr_page_table);
+		if (currentFrame != NULL && to_physical_address(currentFrame) == physical_address)
+		{
 			return i;
 		}
 	}
@@ -206,7 +211,7 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 
 	uint32 physicalAddress = frameNumber * PAGE_SIZE;
 
-		if (physicalAddress == 0)
+	if (physicalAddress == 0)
 		return -1;
 
 	return physicalAddress;
