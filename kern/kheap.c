@@ -1,19 +1,99 @@
-#include <inc/memlayout.h>
+	#include <inc/memlayout.h>
 #include <kern/kheap.h>
 #include <kern/memory_manager.h>
 
 //2022: NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
+const int NUM_OF_PAGES =(KERNEL_HEAP_MAX-KERNEL_HEAP_START)/PAGE_SIZE;
+bool isCalled=0;
+struct kernelHeap{
+	uint32 address;
+	bool isFree;
+}kernelHeapPages[(KERNEL_HEAP_MAX-KERNEL_HEAP_START)/PAGE_SIZE];
+int lastAccssedPage=0;
+void intialize()
+{
+	if(isCalled==1)
+	{
+		return;
+	}
+	int i=0;
+	for(uint32 address=KERNEL_HEAP_START;address<KERNEL_HEAP_MAX;address+=PAGE_SIZE)
+		{
+			kernelHeapPages[i].address=address;
+//			cprintf("index of :%d = %x \n",i,kernelHeapPages[i].address);
+			kernelHeapPages[i].isFree=1;
+			i++;
+		}
+	isCalled=1;
 
-
+}
 void* kmalloc(unsigned int size)
 {
 	//TODO: [PROJECT 2022 - [1] Kernel Heap] kmalloc()
 	// Write your code here, remove the panic and write your code
-	kpanic_into_prompt("kmalloc() is not implemented yet...!!");
 
+	//kpanic_into_prompt("kmalloc() is not implemented yet...!!");
+	intialize();
+	size=ROUNDUP(size,PAGE_SIZE);
+
+	int pagesNumber=size/PAGE_SIZE;
+	int pageFlag=0;
+	int startIndex=-1;
+	int endIndex=-1;
+//	if(pagesNumber>=NUM_OF_PAGES)
+//	{
+//		return NULL;
+//	}
+	cprintf("last : %x \n",kernelHeapPages[lastAccssedPage].address);
+	if(KERNEL_HEAP_MAX-kernelHeapPages[lastAccssedPage].address<size)
+	{
+		return NULL;
+	}
+	for(int j=lastAccssedPage;j<NUM_OF_PAGES;j++)
+	{
+		if(kernelHeapPages[j].isFree==1)
+		{
+			if(pageFlag==0){
+				startIndex=j;
+
+			}
+
+			pageFlag++;
+		}
+		else{
+			pageFlag=0;
+			startIndex=-1;
+		}
+		if(pageFlag==pagesNumber)
+		{
+			endIndex=j;
+			lastAccssedPage=j;
+			break;
+		}
+
+	}
+	for(int j=startIndex;j<=endIndex;j++)
+	{
+		kernelHeapPages[j].isFree=0;
+		struct Frame_Info * currentFrame;
+		int ret=allocate_frame(&currentFrame);
+		if(ret==E_NO_MEM)
+		{
+			break;
+		}
+
+		int ret1=map_frame(ptr_page_directory,currentFrame,(void*)kernelHeapPages[j].address,PERM_PRESENT|PERM_WRITEABLE);
+	}
+
+cprintf("size : %d \n",pagesNumber);
+cprintf("Start Address :  %x \n",startIndex);
+cprintf("End Adrress : %x \n",endIndex);
+
+return (void*)kernelHeapPages[startIndex].address;
 	//NOTE: Allocation using NEXTFIT strategy
 	//NOTE: All kernel heap allocations are multiples of PAGE_SIZE (4KB)
 	//refer to the project presentation and documentation for details
+
 
 
 	//TODO: [PROJECT 2022 - BONUS1] Implement a Kernel allocation strategy
@@ -28,6 +108,7 @@ void* kmalloc(unsigned int size)
 
 
 }
+
 
 void kfree(void* virtual_address)
 {
