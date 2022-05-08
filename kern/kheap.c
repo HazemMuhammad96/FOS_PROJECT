@@ -174,7 +174,7 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 	struct Frame_Info *currentFrame;
 	uint32 *ptr_page_table;
 
-	for (uint32 i = KERNEL_HEAP_START; i <= nextAccssedPageIndex; i += PAGE_SIZE)
+	for (uint32 i = KERNEL_HEAP_START; i <=kernelHeapPages[nextAccssedPageIndex].address; i += PAGE_SIZE)
 	{
 		currentFrame = NULL;
 		currentFrame = get_frame_info(ptr_page_directory, (void *)i, &ptr_page_table);
@@ -210,10 +210,8 @@ uint32 getFrame(unsigned int logicalAddress)
 	uint32 PageIndex = PTX(logicalAddress);
 	uint32 pageTableEntry = pageTable[PageIndex];
 
-	if ((pageTableEntry & PERM_PRESENT) <= 0)
-		return -1;
 
-	uint32 frameNumber = pageTableEntry >> 12;
+	uint32 frameNumber = (pageTableEntry >> 12);
 
 	return frameNumber;
 }
@@ -223,15 +221,12 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 
 	uint32 frameNumber = getFrame(virtual_address);
 
-	if (frameNumber == -1)
-		return -1;
 
 	// uint32 offset = OFFSET(virtual_address);
 
 	uint32 physicalAddress = frameNumber * PAGE_SIZE;
 
-	if (physicalAddress == 0)
-		return -1;
+
 
 	return physicalAddress;
 }
