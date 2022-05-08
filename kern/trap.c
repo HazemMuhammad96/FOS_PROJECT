@@ -451,7 +451,67 @@ void page_fault_handler(struct Env * curenv, uint32 fault_va)
 {
 	//TODO: [PROJECT 2022 - [6] PAGE FAULT HANDLER]
 	// Write your code here, remove the panic and write your code
-	panic("page_fault_handler() is not implemented yet...!!");
+//	panic("page_fault_handler() is not implemented yet...!!");
+	if (env_page_ws_get_size(curenv) >= curenv->page_WS_max_size){
+		//replace
+		int i=curenv->page_last_WS_index;
+		uint32 victimAddress=NULL;
+		bool currentCondition=i<curenv->page_WS_max_size;
+		//try1
+		for(;currentCondition;i++)
+		{
+			uint32 va=curenv->ptr_pageWorkingSet[i]->virtual_address;
+
+			uint32 perms=pt_get_page_permissions(curenv,va);
+			int conditionUsed=perms&PERM_USED;
+			int conditionModified=perms&PERM_MODIFIED;
+			if(conditionUsed==0&&conditionModified==0){
+				//victim found
+				victimAddress=va;
+				if(i==curenv->page_WS_max_size-1)
+				{
+					curenv->page_last_WS_index=0;
+				}
+				curenv->page_last_WS_index=i+1;
+				break;
+			}
+			if(i==curenv->page_WS_max_size-1){
+				i=0;
+				currentCondition=i<curenv->page_last_WS_index;
+			}
+		}
+		//try2
+		i=curenv->page_last_WS_index;
+		for(;currentCondition;i++){
+			uint32 va=curenv->ptr_pageWorkingSet[i]->virtual_address;
+			uint32 perms=pt_get_page_permissions(curenv,va);
+			int conditionUsed=perms&PERM_USED;
+			if(conditionUsed==0){
+				//victim found
+				victimAddress=va;
+			    if(i==curenv->page_WS_max_size-1)
+			    {
+			       curenv->page_last_WS_index=0;
+		        }
+			    curenv->page_last_WS_index=i+1;
+			    break;
+			}
+			else
+			{
+				pt_set_page_permissions(curenv,va,0,PERM_USED);
+			}
+
+			if(i==curenv->page_WS_max_size-1){
+				i=0;
+			    currentCondition=i<curenv->page_last_WS_index;
+			}
+
+		}
+	}
+	else{
+		//place
+	}
+
 
 	//refer to the project presentation and documentation for details
 
