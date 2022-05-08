@@ -14,10 +14,8 @@ struct kernelHeap
 	int tailIndex;
 } kernelHeapPages[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE];
 int nextAccssedPageIndex = 0;
-
-// x --> x + 5
-
 bool isKHeapInitialized = 0;
+
 void initializeKHeap()
 {
 	if (isKHeapInitialized == 1)
@@ -44,13 +42,15 @@ void *kmalloc(unsigned int size)
 	int startIndex = -1;
 	int endIndex = -1;
 
-	// cprintf("last : %x \n", kernelHeapPages[nextAccssedPageIndex].address);
 	if (KERNEL_HEAP_MAX - kernelHeapPages[nextAccssedPageIndex].address < size)
 	{
 		return NULL;
 	}
-	
-	for (int j = nextAccssedPageIndex; j < NUM_OF_PAGES; j++)
+
+	int j = nextAccssedPageIndex;
+	bool currentCondition = j < NUM_OF_PAGES;
+	int sizeCounter = 0;
+	for (; currentCondition; j++)
 	{
 		if (kernelHeapPages[j].isFree == 1)
 		{
@@ -70,7 +70,25 @@ void *kmalloc(unsigned int size)
 		{
 			endIndex = j;
 			nextAccssedPageIndex = j + 1;
+			if (nextAccssedPageIndex >= NUM_OF_PAGES - 1)
+				nextAccssedPageIndex = 0;
 			break;
+		}
+
+		// cprintf("j : %d \t", j);
+		sizeCounter++;
+
+		if (sizeCounter >= NUM_OF_PAGES)
+		{
+			return NULL;
+		}
+
+		if (j == NUM_OF_PAGES - 1)
+		{
+			j = 0;
+			currentCondition = j < nextAccssedPageIndex;
+			pageFlag = 0;
+			startIndex = -1;
 		}
 	}
 
@@ -114,7 +132,8 @@ void *kmalloc(unsigned int size)
 
 int findPageIndexByVA(void *virtual_address)
 {
-	int va = (int)virtual_address;
+	// int va = (int)virtual_address;
+	int va = (int)ROUNDDOWN(virtual_address, PAGE_SIZE);
 
 	for (int i = 0; i < NUM_OF_PAGES; i++)
 	{
