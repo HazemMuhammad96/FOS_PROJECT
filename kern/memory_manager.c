@@ -914,6 +914,9 @@ inline void env_page_ws_set_entry(struct Env* e, uint32 entry_index, uint32 virt
 
 inline void env_page_ws_clear_entry(struct Env* e, uint32 entry_index)
 {
+
+	cprintf("entry_index: %d\n", entry_index);
+	cprintf("e->page_WS_max_size: %d\n", e->page_WS_max_size);
 	assert(entry_index >= 0 && entry_index < (e->page_WS_max_size));
 	e->ptr_pageWorkingSet[entry_index].virtual_address = 0;
 	e->ptr_pageWorkingSet[entry_index].empty = 1;

@@ -12,7 +12,6 @@
 #include <kern/sched.h>
 #include <kern/kclock.h>
 #include <kern/trap.h>
-#include <inc/lib.h>
 
 extern void __static_cpt(uint32 *ptr_page_directory, const uint32 virtual_address, uint32 **ptr_page_table);
 
@@ -453,36 +452,45 @@ void table_fault_handler(struct Env *curenv, uint32 fault_va)
 	}
 }
 
+int workingSetIndex = 0;
 // Handle the page fault
 uint32 try1(struct Env *curenv)
 {
-	int i = curenv->page_last_WS_index;
-	// uint32 victimAddress = NULL;
+	int i = workingSetIndex;
+
 	bool currentCondition = i < curenv->page_WS_max_size;
 	// try1
+
+	cprintf("max = %d\n", curenv->page_WS_max_size);
 	for (; currentCondition; i++)
 	{
+
+		// cprintf("try1 i = %d\n", i);
 		unsigned int va = curenv->ptr_pageWorkingSet[i].virtual_address;
 
 		// cprintf("nooooooooooooooooooooooooooooooooooooooooh\n");
 		uint32 perms = pt_get_page_permissions(curenv, va);
 		int conditionUsed = perms & PERM_USED;
 		int conditionModified = perms & PERM_MODIFIED;
+		// 9 -> 10 / 9 -> 0
+		// i = lastindex
+		// i < max
+		// i < lastindex
 		if (conditionUsed == 0 && conditionModified == 0)
 		{
 			// victim found
 			if (i == curenv->page_WS_max_size - 1)
 			{
-				curenv->page_last_WS_index = 0;
-				continue;
+				workingSetIndex = 0;
+				return va;
 			}
-			curenv->page_last_WS_index = i + 1;
+			workingSetIndex = i + 1;
 			return va;
 		}
 		if (i == curenv->page_WS_max_size - 1)
 		{
 			i = 0;
-			currentCondition = i < curenv->page_last_WS_index;
+			currentCondition = (i < workingSetIndex);
 		}
 	}
 
@@ -493,22 +501,23 @@ uint32 try2(struct Env *curenv)
 {
 	int i = curenv->page_last_WS_index;
 	// uint32 victimAddress = NULL;
-	bool currentCondition = i < curenv->page_WS_max_size;
+	bool currentCondition = (i < curenv->page_WS_max_size);
 	for (; currentCondition; i++)
 	{
+		// cprintf("try2 i = %d\n", i);
 		// uint32 va = curenv->ptr_pageWorkingSet[i]->virtual_address;
 		unsigned int va = curenv->ptr_pageWorkingSet[i].virtual_address;
 		uint32 perms = pt_get_page_permissions(curenv, va);
 		int conditionUsed = perms & PERM_USED;
 		if (conditionUsed == 0)
 		{
-			// victim found
 
 			if (i == curenv->page_WS_max_size - 1)
 			{
-				curenv->page_last_WS_index = 0;
+				workingSetIndex = 0;
+				return va;
 			}
-			curenv->page_last_WS_index = i + 1;
+			workingSetIndex = i + 1;
 			return va;
 		}
 		else
@@ -519,14 +528,14 @@ uint32 try2(struct Env *curenv)
 		if (i == curenv->page_WS_max_size - 1)
 		{
 			i = 0;
-			currentCondition = i < curenv->page_last_WS_index;
+			currentCondition = i < workingSetIndex;
 		}
 	}
 
 	return 0;
 }
 
-void modifiedClockPlacement(struct Env *curenv, uint32 fault_va)
+void modifiedClockPlacement(struct Env *curenv, uint32 fault_va, bool mode)
 {
 	cprintf("In placement: %x \n", fault_va);
 	// place
@@ -534,29 +543,32 @@ void modifiedClockPlacement(struct Env *curenv, uint32 fault_va)
 	uint32 *pageTable = NULL;
 	struct Frame_Info *ptrFrameInfo = NULL;
 	ptrFrameInfo = get_frame_info(curenv->env_page_directory, (void *)fault_va, &pageTable);
-	int ret = allocate_frame(&ptrFrameInfo);
+
+	int ret;
+	// mode 0 = placement / mode 1 = replacement
+	// if (mode == 0)
+	// {
+	ret = allocate_frame(&ptrFrameInfo);
 	if (ret == E_NO_MEM)
 	{
 		return;
 	}
+	// }
+
 	map_frame(curenv->env_page_directory, ptrFrameInfo, (void *)fault_va, PERM_PRESENT | PERM_USER | PERM_WRITEABLE);
 
 	ret = pf_read_env_page(curenv, (uint32 *)fault_va);
 
-	int freePages = sys_calculate_free_frames();
-	uint32 freePagesAfter = (sys_calculate_free_frames() + sys_calculate_modified_frames());
-
 	if (ret == E_PAGE_NOT_EXIST_IN_PF)
 	{
+		// bottom < fault_va < top
 		if (fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)
-			if ((freePages - freePagesAfter) != 0)
-			{
-				return;
-			}
-			else
-				pf_add_empty_env_page(curenv, fault_va, 0);
+		{
+			cprintf("waa2\n");
+			pf_add_empty_env_page(curenv, fault_va, 0);
+		}
 		else
-			panic("Panic");
+			panic("Page not exist in PF");
 	}
 	// cprintf("Return %d\n" , ret);
 	// int size = curenv->page_WS_max_size;
@@ -570,10 +582,10 @@ void modifiedClockPlacement(struct Env *curenv, uint32 fault_va)
 	// 		break;
 	// 	}
 	// }
-	env_page_ws_set_entry(curenv, curenv->page_last_WS_index, fault_va);
-	if (curenv->page_last_WS_index == curenv->page_WS_max_size - 1)
+	env_page_ws_set_entry(curenv, workingSetIndex - 1, fault_va);
+	if (workingSetIndex == curenv->page_WS_max_size - 1)
 	{
-		curenv->page_last_WS_index = 0;
+		workingSetIndex = 0;
 		return;
 	}
 
@@ -585,11 +597,14 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 	cprintf("In function\n");
 	uint32 *pageTable = NULL;
 
-	// TODO: [PROJECT 2022 - [6] PAGE FAULT HANDLER]
-	//  Write your code here, remove the panic and write your code
-	//	panic("page_fault_handler() is not implemented yet...!!");
 	if (env_page_ws_get_size(curenv) >= curenv->page_WS_max_size)
 	{
+
+		if (curenv->page_last_WS_index >= 0 && curenv->page_last_WS_index < curenv->page_WS_max_size)
+		{
+			curenv->page_last_WS_index = 0;
+		}
+
 		cprintf("In replacement \n");
 		uint32 victim = 0;
 		while (victim == 0)
@@ -610,15 +625,16 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 			struct Frame_Info *ptrFrameInfo = NULL;
 			ptrFrameInfo = get_frame_info(curenv->env_page_directory, (void *)victim, &pageTable);
 			// get_page_table(curenv->env_page_directory , (void *)victim , &pageTable);
-
 			int ret = pf_update_env_page(curenv, (void *)victim, ptrFrameInfo);
 		}
 		// replacement
 		unmap_frame(curenv->env_page_directory, (void *)victim);
-		env_page_ws_invalidate(curenv, victim);
+		// env_page_ws_invalidate(curenv, victim);
+		env_page_ws_clear_entry(curenv, victim);
+
 		// pf_remove_env_page(curenv,victim);
 		cprintf("before going placment");
-		modifiedClockPlacement(curenv, fault_va);
+		modifiedClockPlacement(curenv, fault_va, 1);
 		// int ret = pf_read_env_page(curenv,(uint32*)fault_va);
 		//		if (ret == E_PAGE_NOT_EXIST_IN_PF)
 		//		{
@@ -628,7 +644,7 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 	else
 
 	{
-		modifiedClockPlacement(curenv, fault_va);
+		modifiedClockPlacement(curenv, fault_va, 0);
 	}
 
 	// refer to the project presentation and documentation for details
