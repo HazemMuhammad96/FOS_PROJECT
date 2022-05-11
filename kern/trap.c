@@ -494,7 +494,7 @@ uint32 try1(struct Env *curenv)
 		}
 	}
 
-	return 0;
+	return -1;
 }
 
 uint32 try2(struct Env *curenv)
@@ -532,43 +532,45 @@ uint32 try2(struct Env *curenv)
 		}
 	}
 
-	return 0;
+	return -1;
 }
 
-void modifiedClockPlacement(struct Env *curenv, uint32 fault_va, bool mode)
+void modifiedClockPlacement(struct Env *curenv, uint32 fault_va)
 {
 	cprintf("In placement: %x \n", fault_va);
 	// place
 	// placement_(curenv, fault_va);
 	uint32 *pageTable = NULL;
 	struct Frame_Info *ptrFrameInfo = NULL;
-	ptrFrameInfo = get_frame_info(curenv->env_page_directory, (void *)fault_va, &pageTable);
+	int ret = allocate_frame(&ptrFrameInfo);
+	//ptrFrameInfo = get_frame_info(curenv->env_page_directory, (void *)fault_va, &pageTable);
 
-	int ret;
+
 	// mode 0 = placement / mode 1 = replacement
 	// if (mode == 0)
 	// {
-	ret = allocate_frame(&ptrFrameInfo);
+	//ret = allocate_frame(&ptrFrameInfo);
 	if (ret == E_NO_MEM)
 	{
 		return;
 	}
 	// }
-
+	if(ret!=E_NO_MEM) {
 	map_frame(curenv->env_page_directory, ptrFrameInfo, (void *)fault_va, PERM_PRESENT | PERM_USER | PERM_WRITEABLE);
 
 	ret = pf_read_env_page(curenv, (uint32 *)fault_va);
-
 	if (ret == E_PAGE_NOT_EXIST_IN_PF)
-	{
-		// bottom < fault_va < top
-		if (fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)
 		{
-			cprintf("waa2\n");
-			pf_add_empty_env_page(curenv, fault_va, 0);
-		}
-		else
-			panic("Page not exist in PF");
+			// bottom < fault_va < top
+			if (fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)
+			{
+				cprintf("waa2\n");
+				pf_add_empty_env_page(curenv, fault_va, 0);
+			}
+			else
+				panic("Page not exist in PF");
+	}
+
 	}
 	// cprintf("Return %d\n" , ret);
 	// int size = curenv->page_WS_max_size;
@@ -582,8 +584,8 @@ void modifiedClockPlacement(struct Env *curenv, uint32 fault_va, bool mode)
 	// 		break;
 	// 	}
 	// }
-	env_page_ws_set_entry(curenv, workingSetIndex - 1, fault_va);
-	if (workingSetIndex == curenv->page_WS_max_size - 1)
+	env_page_ws_set_entry(curenv, curenv->page_last_WS_index, fault_va);
+	if (curenv->page_last_WS_index == curenv->page_WS_max_size - 1)
 	{
 		workingSetIndex = 0;
 		return;
@@ -606,15 +608,14 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 		}
 
 		cprintf("In replacement \n");
-		uint32 victim = 0;
-		while (victim == 0)
+		uint32 victim = -1;
+		while (victim == -1)
 		{
-
 			cprintf("before a complete iteration\n");
 			victim = try1(curenv);
 			cprintf("after try 1\n");
-			if (victim == 0)
-				victim = try2(curenv);
+			if (victim == -1)
+			victim = try2(curenv);
 			cprintf("made a complete iteration\n");
 		}
 		// updating modified bit.
@@ -628,24 +629,25 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 			int ret = pf_update_env_page(curenv, (void *)victim, ptrFrameInfo);
 		}
 		// replacement
-		unmap_frame(curenv->env_page_directory, (void *)victim);
-		// env_page_ws_invalidate(curenv, victim);
-		env_page_ws_clear_entry(curenv, victim);
 
-		// pf_remove_env_page(curenv,victim);
-		cprintf("before going placment");
-		modifiedClockPlacement(curenv, fault_va, 1);
-		// int ret = pf_read_env_page(curenv,(uint32*)fault_va);
-		//		if (ret == E_PAGE_NOT_EXIST_IN_PF)
-		//		{
-		//
-		//		}
-	}
-	else
 
-	{
-		modifiedClockPlacement(curenv, fault_va, 0);
+
+			  uint32 va =curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].virtual_address ;
+			   struct Frame_Info * frame_info_ptr = NULL ;
+			   uint32 * ptr_table = NULL ;
+			   frame_info_ptr = get_frame_info(curenv->env_page_directory,(void *)va, &ptr_table);
+			  uint32 perm = pt_get_page_permissions(curenv,va);
+
+			  unmap_frame(curenv->env_page_directory,(void*) va);
+			  env_page_ws_invalidate(curenv,va);
+
+			  modifiedClockPlacement(curenv, fault_va);
+
 	}
+	else {
+		modifiedClockPlacement(curenv, fault_va);
+	}
+	//curenv->page_last_WS_index = curenv->page_last_WS_index %  curenv->page_WS_max_size ;
 
 	// refer to the project presentation and documentation for details
 
