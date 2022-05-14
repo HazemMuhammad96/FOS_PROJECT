@@ -463,9 +463,8 @@ void printWorkingSet(struct Env *env)
 
 void modifiedClockPlacement(struct Env *curenv, uint32 fault_va)
 {
-	// cprintf("In placement: %x \n", fault_va);
+	cprintf("In placement: %x \n", fault_va);
 	// place
-	// placement_(curenv, fault_va);
 	uint32 *pageTable = NULL;
 	struct Frame_Info *ptrFrameInfo = NULL;
 	int ret = allocate_frame(&ptrFrameInfo);
@@ -494,7 +493,6 @@ void modifiedClockPlacement(struct Env *curenv, uint32 fault_va)
 		}
 	}
 
-
 	env_page_ws_set_entry(curenv, curenv->page_last_WS_index, fault_va);
 	if (curenv->page_last_WS_index == curenv->page_WS_max_size - 1)
 	{
@@ -511,6 +509,7 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 	int i = curenv->page_last_WS_index;
 	bool currentCondition = i < curenv->page_WS_max_size;
 	unsigned int va = 0;
+	bool isRoundTwo = 0;
 	for (; currentCondition; i++)
 	{
 		va = curenv->ptr_pageWorkingSet[i].virtual_address;
@@ -519,6 +518,8 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 		int conditionModified = perms & PERM_MODIFIED;
 		bool tryCondition;
 		// Condition for try1==0 and try2==1
+
+		// cprintf("try num %d i = %d currencond = %d\n", isTryTwo, i, currentCondition);
 		if (isTryTwo == 0)
 			tryCondition = conditionUsed == 0 && conditionModified == 0;
 		else
@@ -527,7 +528,7 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 		if (tryCondition)
 		{
 			// victim found
-			cprintf("i = %d \n", i);
+			// cprintf("here i = %d \n", i);
 			// if (i == curenv->page_WS_max_size - 1)
 			// {
 			// 	curenv->page_last_WS_index = 0;
@@ -547,7 +548,11 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 		if (i == curenv->page_WS_max_size - 1)
 		{
 			i = 0;
-			currentCondition = (i < curenv->page_last_WS_index);
+			// cprintf("condition i = %d \t lastWS = %d\n", i, curenv->page_last_WS_index);
+			if (isRoundTwo)
+				break;
+			isRoundTwo = 1;
+			currentCondition = i < curenv->page_last_WS_index;
 		}
 	}
 	return -1;
@@ -556,14 +561,17 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 void modifiedClockReplacement(struct Env *curenv, uint32 fault_va)
 {
 
+	cprintf("In replacement: %x \n", fault_va);
 	uint32 *pageTable = NULL;
-	if (curenv->page_last_WS_index >= 0 && curenv->page_last_WS_index < curenv->page_WS_max_size)
-		curenv->page_last_WS_index = 0;
+	// if (curenv->page_last_WS_index >= 0 && curenv->page_last_WS_index < curenv->page_WS_max_size)
+	// 	curenv->page_last_WS_index = 0;
 
 	// cprintf("In replacement \n");
 	uint32 victim = -1;
+	cprintf("WSSize = %d\n", curenv->page_WS_max_size);
 	while (victim == -1)
 	{
+		cprintf("lastWSIndex = %d \n", curenv->page_last_WS_index);
 		// cprintf("before a complete iteration\n");
 		victim = try(curenv, 0);
 		// cprintf("after try 1\n");
@@ -606,21 +614,21 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 	// if (isPageReplacmentAlgorithmModifiedCLOCK())
 	// {
 
-		fault_va = (ROUNDDOWN(fault_va, PAGE_SIZE));
+	fault_va = (ROUNDDOWN(fault_va, PAGE_SIZE));
 
-		cprintf("\n\nbefore %d \n", blablaindex);
-		printWorkingSet(curenv);
-		cprintf("\n-----------------\n");
+	cprintf("\n\nbefore %d \n", blablaindex);
+	printWorkingSet(curenv);
+	cprintf("\n-----------------\n");
 
-		if (env_page_ws_get_size(curenv) >= curenv->page_WS_max_size)
-			modifiedClockReplacement(curenv, fault_va);
-		else
-			modifiedClockPlacement(curenv, fault_va);
+	if (env_page_ws_get_size(curenv) >= curenv->page_WS_max_size)
+		modifiedClockReplacement(curenv, fault_va);
+	else
+		modifiedClockPlacement(curenv, fault_va);
 
-		cprintf("after %d\n\n", blablaindex);
-		printWorkingSet(curenv);
-		cprintf("\n-----------------\n");
-		blablaindex++;
+	cprintf("after %d\n\n", blablaindex);
+	printWorkingSet(curenv);
+	cprintf("\n-----------------\n");
+	blablaindex++;
 	// }
 	// TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority
 }
