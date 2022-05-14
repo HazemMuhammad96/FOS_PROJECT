@@ -523,10 +523,12 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 		if (isTryTwo == 0)
 			tryCondition = conditionUsed == 0 && conditionModified == 0;
 		else
-			tryCondition = conditionUsed == 0;
+			tryCondition = conditionUsed == 0 && conditionModified != 0;
 
 		if (tryCondition)
 		{
+			cprintf("try %d\t", isTryTwo);
+			cprintf("used = %d modified = %d\n", conditionUsed, conditionModified);
 			// victim found
 			// cprintf("here i = %d \n", i);
 			// if (i == curenv->page_WS_max_size - 1)
@@ -537,7 +539,7 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 
 			// cprintf("victim found:\ncurenvindex: %d\ni: %d\n", curenv->page_last_WS_index, i);
 			curenv->page_last_WS_index = i;
-			return va;
+			return i;
 		}
 
 		else
@@ -549,7 +551,7 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 		{
 			i = 0;
 			// cprintf("condition i = %d \t lastWS = %d\n", i, curenv->page_last_WS_index);
-			if (isRoundTwo)
+			if (isRoundTwo && i < curenv->page_last_WS_index)
 				break;
 			isRoundTwo = 1;
 			currentCondition = i < curenv->page_last_WS_index;
@@ -571,18 +573,23 @@ void modifiedClockReplacement(struct Env *curenv, uint32 fault_va)
 	cprintf("WSSize = %d\n", curenv->page_WS_max_size);
 	while (victim == -1)
 	{
-		cprintf("lastWSIndex = %d \n", curenv->page_last_WS_index);
+		// cprintf("lastWSIndex = %d \n", curenv->page_last_WS_index);
 		// cprintf("before a complete iteration\n");
 		victim = try(curenv, 0);
+
 		// cprintf("after try 1\n");
 		if (victim == -1)
 			victim = try(curenv, 1);
+
+		
 		// cprintf("made a complete iteration\n");
 	}
 
+	cprintf("victim = %d\n", victim);
+	cprintf("lastWSIndex = %d \n", curenv->page_last_WS_index);
+
 	// updating modified bit.
 	uint32 va = curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].virtual_address;
-	va = ROUNDDOWN(va, PAGE_SIZE);
 
 	uint32 perms = pt_get_page_permissions(curenv, va);
 	int conditionModified = perms & PERM_MODIFIED;
@@ -614,7 +621,7 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 	// if (isPageReplacmentAlgorithmModifiedCLOCK())
 	// {
 
-	fault_va = (ROUNDDOWN(fault_va, PAGE_SIZE));
+	fault_va = ROUNDDOWN(fault_va, PAGE_SIZE);
 
 	cprintf("\n\nbefore %d \n", blablaindex);
 	printWorkingSet(curenv);
