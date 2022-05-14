@@ -51,7 +51,7 @@ void _main(void)
 
 	//===================
 	{
-		cprintf("Zafat address is : %x\n", ROUNDDOWN(myEnv->__uptr_pws[0].virtual_address, PAGE_SIZE));
+		// cprintf("Zafat address is : %x\n", ROUNDDOWN(myEnv->__uptr_pws[0].virtual_address, PAGE_SIZE));
 
 		if( ROUNDDOWN(myEnv->__uptr_pws[0].virtual_address,PAGE_SIZE) !=  0x809000)  panic("modified clock algo failed");
 		if( ROUNDDOWN(myEnv->__uptr_pws[1].virtual_address,PAGE_SIZE) !=  0x80a000)  panic("modified clock algo failed");

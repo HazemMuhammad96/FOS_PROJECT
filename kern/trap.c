@@ -503,13 +503,76 @@ void modifiedClockPlacement(struct Env *curenv, uint32 fault_va)
 	curenv->page_last_WS_index++;
 }
 
+// uint32 isCurrentAddressVictim(struct Env *curenv, uint32 i)
+// {
+
+// 	return -1;
+// }
+
+uint32 findVictim(struct Env *curenv, bool isTryTwo)
+{
+	int i = curenv->page_last_WS_index;
+	int round = 1;
+
+	cprintf("startPtr = %d\n", i);
+	do
+	{
+		cprintf("try = %d, round = %d, i = %d ", isTryTwo, round, i);
+
+		///
+
+		unsigned int va = curenv->ptr_pageWorkingSet[i].virtual_address;
+		uint32 perms = pt_get_page_permissions(curenv, va);
+		int conditionUsed = perms & PERM_USED;
+		int conditionModified = perms & PERM_MODIFIED;
+		bool tryCondition;
+
+		if (isTryTwo == 0)
+			tryCondition = conditionUsed == 0 && conditionModified == 0;
+		else
+			tryCondition = conditionUsed == 0 && conditionModified > 0;
+
+		cprintf(" used = %d modified = %d\n", conditionUsed, conditionModified);
+
+		if (tryCondition)
+		{
+			// cprintf("try %d\t", isTryTwo);
+			// cprintf("used = %d modified = %d\n", conditionUsed, conditionModified);
+			cprintf("found it in i = %d, curenv->page_last_WS_index = %d\n",
+					i, curenv->page_last_WS_index);
+			curenv->page_last_WS_index = i;
+			return i;
+		}
+		else
+		{
+			if (isTryTwo)
+			{
+				pt_set_page_permissions(curenv, va, 0, PERM_USED);
+			}
+		}
+
+		if (i == curenv->page_last_WS_index - 1 && curenv->page_last_WS_index > 0)
+			round++;
+		else if (curenv->page_last_WS_index == 0 && i == curenv->page_WS_max_size - 1)
+			round++;
+
+		i = (i + 1) % curenv->page_WS_max_size;
+
+	} while (round < 2);
+
+	return -1;
+}
+
 uint32 try(struct Env *curenv, bool isTryTwo)
 {
-
+	curenv->page_last_WS_index = 5;
 	int i = curenv->page_last_WS_index;
-	bool currentCondition = i < curenv->page_WS_max_size;
+	bool currentCondition = i < curenv->page_last_WS_index;
 	unsigned int va = 0;
-	bool isRoundTwo = 0;
+	int isRoundTwo = 1;
+
+	cprintf("max size = %d\n", curenv->page_WS_max_size);
+	return -1;
 	for (; currentCondition; i++)
 	{
 		va = curenv->ptr_pageWorkingSet[i].virtual_address;
@@ -517,6 +580,11 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 		int conditionUsed = perms & PERM_USED;
 		int conditionModified = perms & PERM_MODIFIED;
 		bool tryCondition;
+
+		cprintf("in in in in\n");
+		// print conditionUsed & conditionModified & isTryTwo & isRoundTwo & i
+		cprintf("i = %d, used = %d, mod = %d, try = %d, round = %d,\n",
+				i, conditionUsed, conditionModified, isTryTwo, isRoundTwo);
 		// Condition for try1==0 and try2==1
 
 		// cprintf("try num %d i = %d currencond = %d\n", isTryTwo, i, currentCondition);
@@ -541,7 +609,6 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 			curenv->page_last_WS_index = i;
 			return i;
 		}
-
 		else
 		{
 			if (isTryTwo)
@@ -570,22 +637,19 @@ void modifiedClockReplacement(struct Env *curenv, uint32 fault_va)
 
 	// cprintf("In replacement \n");
 	uint32 victim = -1;
-	cprintf("WSSize = %d\n", curenv->page_WS_max_size);
 	while (victim == -1)
 	{
 		// cprintf("lastWSIndex = %d \n", curenv->page_last_WS_index);
 		// cprintf("before a complete iteration\n");
-		victim = try(curenv, 0);
+		victim = findVictim(curenv, 0);
 
 		// cprintf("after try 1\n");
 		if (victim == -1)
-			victim = try(curenv, 1);
+			victim = findVictim(curenv, 1);
 
-		
 		// cprintf("made a complete iteration\n");
 	}
 
-	cprintf("victim = %d\n", victim);
 	cprintf("lastWSIndex = %d \n", curenv->page_last_WS_index);
 
 	// updating modified bit.
@@ -632,9 +696,10 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 	else
 		modifiedClockPlacement(curenv, fault_va);
 
-	cprintf("after %d\n\n", blablaindex);
+	cprintf("-----------------\n");
+	cprintf("after %d\n", blablaindex);
 	printWorkingSet(curenv);
-	cprintf("\n-----------------\n");
+	cprintf("-----------------\n");
 	blablaindex++;
 	// }
 	// TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority
