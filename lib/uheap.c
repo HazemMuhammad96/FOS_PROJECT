@@ -17,16 +17,97 @@
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
+const int NUM_OF_USER_PAGES = (USER_HEAP_MAX - USER_HEAP_START) / PAGE_SIZE;
+struct userHeap
+{
+	uint32 address;
+	bool isFree;
+	int headIndex;
+	int tailIndex;
+} userHeapPages[(USER_HEAP_MAX - USER_HEAP_START) / PAGE_SIZE];
+int nextAccssedPageIndex = 0;
+bool isUHeapInitialized = 0;
 
+void initializeUHeap()
+{
+	if (isUHeapInitialized == 1)
+		return;
+
+	int i = 0;
+	for (uint32 address = USER_HEAP_START; address < USER_HEAP_MAX; address += PAGE_SIZE)
+	{
+		userHeapPages[i].address = address;
+		userHeapPages[i].isFree = 1;
+		i++;
+	}
+	isUHeapInitialized = 1;
+}
 void* malloc(uint32 size)
 {
 	//TODO: [PROJECT 2022 - [9] User Heap malloc()] [User Side]
 	// Write your code here, remove the panic and write your code
-	panic("malloc() is not implemented yet...!!");
-
+	//panic("malloc() is not implemented yet...!!");
+	initializeUHeap();
+	size = ROUNDUP(size, PAGE_SIZE);
+	int pagesNumber = size / PAGE_SIZE;
+	int pageFlag = 0;
+	int startIndex = -1;
+	int endIndex = -1;
+	if (USER_HEAP_MAX - userHeapPages[nextAccssedPageIndex].address < size)
+			{
+				return NULL;
+			}
+	int j = nextAccssedPageIndex;
+	bool currentCondition = j < NUM_OF_USER_PAGES;
+	int sizeCounter = 0;
 	// Steps:
 	//	1) Implement NEXT FIT strategy to search the heap for suitable space
 	//		to the required allocation size (space should be on 4 KB BOUNDARY)
+	for (; currentCondition; j++)
+		{
+			if (userHeapPages[j].isFree == 1)
+			{
+				if (pageFlag == 0)
+				{
+					startIndex = j;
+				}
+
+				pageFlag++;
+			}
+			else
+			{
+				pageFlag = 0;
+				startIndex = -1;
+			}
+			if (pageFlag == pagesNumber)
+			{
+				endIndex = j;
+				nextAccssedPageIndex = j + 1;
+				if (nextAccssedPageIndex >= NUM_OF_USER_PAGES - 1)
+					nextAccssedPageIndex = 0;
+				break;
+			}
+
+			// cprintf("j : %d \t", j);
+			sizeCounter++;
+
+			if (sizeCounter >= NUM_OF_USER_PAGES)
+			{
+				return NULL;
+			}
+
+			if (j == NUM_OF_USER_PAGES - 1)
+			{
+				j = 0;
+				currentCondition = j < nextAccssedPageIndex;
+				pageFlag = 0;
+				startIndex = -1;
+			}
+		}
+	sys_allocateMem(userHeapPages[startIndex].address,pagesNumber);
+
+
+	return (void *)userHeapPages[startIndex].address;
 	//	2) if no suitable space found, return NULL
 	//	 Else,
 	//	3) Call sys_allocateMem to invoke the Kernel for allocation
@@ -40,7 +121,7 @@ void* malloc(uint32 size)
 	//sys_isUHeapPlacementStrategyBESTFIT() for the bonus
 	//to check the current strategy
 
-	return NULL;
+
 }
 
 void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)

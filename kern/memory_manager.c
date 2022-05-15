@@ -727,8 +727,29 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 {
 	//TODO: [PROJECT 2022 - [10] User Heap] allocateMem() [Kernel Side]
 	// Write your code here, remove the panic and write your code
-	panic("allocateMem() is not implemented yet...!!");
+//	panic("allocateMem() is not implemented yet...!!");
 
+	size=ROUNDUP(size,PAGE_SIZE);
+
+int ret=0;
+	for (int j = 0; j < size; j++){
+
+//	   pt_set_page_permissions(e, virtual_address, PERM_WRITEABLE|PERM_USER, 0);
+
+			struct Frame_Info *currentFrame;
+
+			 ret = allocate_frame(&currentFrame);
+			if (ret == E_NO_MEM)
+				return;
+			ret = map_frame(ptr_page_directory, currentFrame,(void*)virtual_address, PERM_USER | PERM_WRITEABLE);
+			if (ret == E_NO_MEM)
+				return;
+			  ret = pf_add_empty_env_page(e, virtual_address , 0);
+		   if(ret==E_NO_PAGE_FILE_SPACE){
+			   panic("NO Pagefile size");
+		   }
+		   virtual_address+=PAGE_SIZE;
+	}
 	//This function should allocate ALL pages of the required range in the PAGE FILE
 	//and allocate NOTHING in the main memory
 
