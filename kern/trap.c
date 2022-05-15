@@ -687,20 +687,20 @@ void page_fault_handler(struct Env *curenv, uint32 fault_va)
 
 	fault_va = ROUNDDOWN(fault_va, PAGE_SIZE);
 
-	cprintf("\n\nbefore %d \n", blablaindex);
-	printWorkingSet(curenv);
-	cprintf("\n-----------------\n");
+	//cprintf("\n\nbefore %d \n", blablaindex);
+	//printWorkingSet(curenv);
+	//cprintf("\n-----------------\n");
 
 	if (env_page_ws_get_size(curenv) >= curenv->page_WS_max_size)
 		modifiedClockReplacement(curenv, fault_va);
 	else
 		modifiedClockPlacement(curenv, fault_va);
 
-	cprintf("-----------------\n");
-	cprintf("after %d\n", blablaindex);
-	printWorkingSet(curenv);
-	cprintf("-----------------\n");
-	blablaindex++;
+	//cprintf("-----------------\n");
+	//cprintf("after %d\n", blablaindex);
+	//printWorkingSet(curenv);
+	//cprintf("-----------------\n");
+	//blablaindex++;
 	// }
 	// TODO: [PROJECT 2022 - BONUS4] Change WS Size according to Program Priority
 }

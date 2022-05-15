@@ -729,27 +729,14 @@ void allocateMem(struct Env* e, uint32 virtual_address, uint32 size)
 	// Write your code here, remove the panic and write your code
 //	panic("allocateMem() is not implemented yet...!!");
 
-	size=ROUNDUP(size,PAGE_SIZE);
+	//size=ROUNDUP(size,PAGE_SIZE);
 
-int ret=0;
-	for (int j = 0; j < size; j++){
+	for(int i = 0; i < size; i++){
+	        pf_add_empty_env_page(e, virtual_address, 0);
 
-//	   pt_set_page_permissions(e, virtual_address, PERM_WRITEABLE|PERM_USER, 0);
+	        virtual_address+=PAGE_SIZE;
+	    }
 
-			struct Frame_Info *currentFrame;
-
-			 ret = allocate_frame(&currentFrame);
-			if (ret == E_NO_MEM)
-				return;
-			ret = map_frame(ptr_page_directory, currentFrame,(void*)virtual_address, PERM_USER | PERM_WRITEABLE);
-			if (ret == E_NO_MEM)
-				return;
-			  ret = pf_add_empty_env_page(e, virtual_address , 0);
-		   if(ret==E_NO_PAGE_FILE_SPACE){
-			   panic("NO Pagefile size");
-		   }
-		   virtual_address+=PAGE_SIZE;
-	}
 	//This function should allocate ALL pages of the required range in the PAGE FILE
 	//and allocate NOTHING in the main memory
 
@@ -763,7 +750,31 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 
 	//TODO: [PROJECT 2022 - [12] User Heap] freeMem() [Kernel Side]
 	// Write your code here, remove the panic and write your code
-	panic("freeMem() is not implemented yet...!!");
+	//panic("freeMem() is not implemented yet...!!");
+	virtual_address=ROUNDDOWN(virtual_address,PAGE_SIZE);
+	for(int i = virtual_address ; i<virtual_address+size ; i+=PAGE_SIZE)
+	{
+		pf_remove_env_page(e, i);
+		env_page_ws_invalidate(e,i);
+		unmap_frame(e->env_page_directory,(void*)i);
+		pt_clear_page_table_entry(e, i);
+		//virtual_address+=PAGE_SIZE;
+	}
+
+	for(int i = 0 ; i<size ; i++)
+	{
+		uint32 *pageTable=NULL;
+		int tablePage = get_page_table(e->env_page_directory,(void*)virtual_address,&pageTable);
+		if(pageTable!=NULL)
+		{
+			struct Frame_Info *frameInfo = get_frame_info(e->env_page_directory,(void*) virtual_address, &pageTable);
+			if(frameInfo==NULL)
+			{
+				kfree((void*)virtual_address);
+
+			}
+		}
+	}
 
 	//This function should:
 	//1. Free ALL pages of the given range from the Page File

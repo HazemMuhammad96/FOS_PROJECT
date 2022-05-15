@@ -47,6 +47,8 @@ void* malloc(uint32 size)
 	//TODO: [PROJECT 2022 - [9] User Heap malloc()] [User Side]
 	// Write your code here, remove the panic and write your code
 	//panic("malloc() is not implemented yet...!!");
+	sys_isUHeapPlacementStrategyNEXTFIT(); //check lw next fit
+	cprintf("hnaaaaa");
 	initializeUHeap();
 	size = ROUNDUP(size, PAGE_SIZE);
 	int pagesNumber = size / PAGE_SIZE;
@@ -104,6 +106,14 @@ void* malloc(uint32 size)
 				startIndex = -1;
 			}
 		}
+
+	//pt_set_page_permissions(environment, virtual_address, PERM_WRITEABLE, PERM_PRESENT);
+	for (int j = startIndex; j <= endIndex; j++)
+		{
+			userHeapPages[j].isFree = 0;
+			userHeapPages[j].headIndex = startIndex;
+			userHeapPages[j].tailIndex = endIndex;
+		}
 	sys_allocateMem(userHeapPages[startIndex].address,pagesNumber);
 
 
@@ -144,18 +154,44 @@ void* sget(int32 ownerEnvID, char *sharedVarName)
 //	We can use sys_freeMem(uint32 virtual_address, uint32 size); which
 //		switches to the kernel mode, calls freeMem(struct Env* e, uint32 virtual_address, uint32 size) in
 //		"memory_manager.c", then switch back to the user mode here
-//	the freeMem function is empty, make sure to implement it.
+//	the freeMem function is empty, make sure to implement it
+int findPageIndexByVA(void *virtual_address)
+{
+	// int va = (int)virtual_address;
+	int va = (int)ROUNDDOWN(virtual_address, PAGE_SIZE);
+
+	for (int i = 0; i < NUM_OF_USER_PAGES; i++)
+	{
+		if (userHeapPages[i].address == va)
+			return i;
+	}
+
+	return -1;
+}
 
 void free(void* virtual_address)
 {
 	//TODO: [PROJECT 2022 - [11] User Heap free()] [User Side]
 	// Write your code here, remove the panic and write your code
-	panic("free() is not implemented yet...!!");
-
+	//panic("free() is not implemented yet...!!");
+	//virtual_address=ROUNDDOWN(virtual_address,PAGE_SIZE);
 	//you shold get the size of the given allocation using its address
 	//you need to call sys_freeMem()
 	//refer to the project presentation and documentation for details
+	int index = findPageIndexByVA(virtual_address);
+		if (index == -1)
+			return;
 
+		struct userHeap currentPage = userHeapPages[index];
+
+		for (int i = currentPage.headIndex; i <= currentPage.tailIndex; i++)
+		{
+	//		unmap_frame(ptr_page_directory, (void *)kernelHeapPages[i].address);
+			userHeapPages[i].isFree = 1;
+			userHeapPages[i].headIndex = -1;
+			userHeapPages[i].tailIndex = -1;
+		}
+		sys_freeMem((uint32)virtual_address,userHeapPages[index].tailIndex-userHeapPages[index].headIndex);
 }
 
 
