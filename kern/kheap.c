@@ -111,13 +111,13 @@ void *kmalloc(unsigned int size)
 			return NULL;
 	}
 
-	cprintf("\nsize : %d \n", pagesNumber);
-	cprintf("Start Address Index: %d\naddress: %x\thead: %x\ttail: %x\n",
-			startIndex, kernelHeapPages[startIndex].address,
-			kernelHeapPages[startIndex].headIndex, kernelHeapPages[startIndex].tailIndex);
-	cprintf("End Address Index: %d\naddress: %x\thead: %x\ttail: %x\n\n",
-			endIndex, kernelHeapPages[endIndex].address,
-			kernelHeapPages[endIndex].headIndex, kernelHeapPages[endIndex].tailIndex);
+	//cprintf("\nsize : %d \n", pagesNumber);
+	//cprintf("Start Address Index: %d\naddress: %x\thead: %x\ttail: %x\n",
+			//startIndex, kernelHeapPages[startIndex].address,
+			//kernelHeapPages[startIndex].headIndex, kernelHeapPages[startIndex].tailIndex);
+	//cprintf("End Address Index: %d\naddress: %x\thead: %x\ttail: %x\n\n",
+			//endIndex, kernelHeapPages[endIndex].address,
+			//kernelHeapPages[endIndex].headIndex, kernelHeapPages[endIndex].tailIndex);
 
 	return (void *)kernelHeapPages[startIndex].address;
 

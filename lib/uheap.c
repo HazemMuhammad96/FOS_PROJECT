@@ -25,6 +25,7 @@ struct userHeap
 	bool isFree;
 	int headIndex;
 	int tailIndex;
+	uint32 size;
 } userHeapPages[(USER_HEAP_MAX - USER_HEAP_START) / PAGE_SIZE];
 int nextAccssedPageIndex = 0;
 bool isUHeapInitialized = 0;
@@ -49,7 +50,7 @@ void* malloc(uint32 size)
 	// Write your code here, remove the panic and write your code
 	//panic("malloc() is not implemented yet...!!");
 	sys_isUHeapPlacementStrategyNEXTFIT(); //check lw next fit
-	cprintf("hnaaaaa");
+	//cprintf("hnaaaaa");
 	initializeUHeap();
 	size = ROUNDUP(size, PAGE_SIZE);
 	int pagesNumber = size / PAGE_SIZE;
@@ -114,6 +115,7 @@ void* malloc(uint32 size)
 			userHeapPages[j].isFree = 0;
 			userHeapPages[j].headIndex = startIndex;
 			userHeapPages[j].tailIndex = endIndex;
+			userHeapPages[j].size=size;
 		}
 	sys_allocateMem(userHeapPages[startIndex].address,pagesNumber);
 
@@ -175,7 +177,7 @@ void free(void* virtual_address)
 	//TODO: [PROJECT 2022 - [11] User Heap free()] [User Side]
 	// Write your code here, remove the panic and write your code
 	//panic("free() is not implemented yet...!!");
-	//virtual_address=ROUNDDOWN(virtual_address,PAGE_SIZE);
+	virtual_address=ROUNDDOWN(virtual_address,PAGE_SIZE);
 	//you shold get the size of the given allocation using its address
 	//you need to call sys_freeMem()
 	//refer to the project presentation and documentation for details
@@ -184,7 +186,7 @@ void free(void* virtual_address)
 			return;
 
 		struct userHeap currentPage = userHeapPages[index];
-
+		//int sentSize= currentPage.tailIndex-currentPage.headIndex;
 		for (int i = currentPage.headIndex; i <= currentPage.tailIndex; i++)
 		{
 	//		unmap_frame(ptr_page_directory, (void *)kernelHeapPages[i].address);
@@ -193,8 +195,9 @@ void free(void* virtual_address)
 			userHeapPages[i].tailIndex = -1;
 
 		}
-		int sentSize= currentPage.tailIndex-currentPage.headIndex;
-		sys_freeMem((uint32)virtual_address,sentSize);
+		sys_freeMem((uint32)virtual_address,userHeapPages[index].size);
+
+
 
 }
 
