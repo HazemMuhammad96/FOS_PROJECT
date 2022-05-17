@@ -752,37 +752,67 @@ void freeMem(struct Env* e, uint32 virtual_address, uint32 size)
 	// Write your code here, remove the panic and write your code
 	//panic("freeMem() is not implemented yet...!!");
 	virtual_address=ROUNDDOWN(virtual_address,PAGE_SIZE);
-	for(int i = virtual_address ; i<virtual_address+size ; i+=PAGE_SIZE)
-	{
-		pf_remove_env_page(e, i);
-		env_page_ws_invalidate(e,i);
-		unmap_frame(e->env_page_directory,(void*)i);
-		pt_clear_page_table_entry(e, i);
-		//virtual_address+=PAGE_SIZE;
+	//uint32 numOfUHeapPages=ROUNDUP(size, PAGE_SIZE)/PAGE_SIZE;
+	cprintf("in page file \n");
+	uint32 va=virtual_address;
+	uint32 * pageTable=NULL;
+	uint32 wsVa=0;
+	for(int i=0;i<size;i++){
+		pf_remove_env_page(e,va);
+		va+=PAGE_SIZE;
 	}
+	int pageTableEntries=1024;
+	for(int i=0;i<size;i++){
+		//page file remove
 
-	for(int i = 0 ; i<size ; i++)
-	{
-		uint32 *pageTable=NULL;
-		int tablePage = get_page_table(e->env_page_directory,(void*)virtual_address,&pageTable);
-		if(pageTable!=NULL)
-		{
-			struct Frame_Info *frameInfo = get_frame_info(e->env_page_directory,(void*) virtual_address, &pageTable);
-			if(frameInfo==NULL)
-			{
-				kfree((void*)virtual_address);
-
+	//working set remove
+		for(int j=0;j<e->page_WS_max_size;j++){
+//			cprintf("in working set\n");
+			wsVa=env_page_ws_get_virtual_address(e,j);
+			if(wsVa==virtual_address){
+				unmap_frame(e->env_page_directory,(void*)wsVa);
+				env_page_ws_clear_entry(e,j);
 			}
 		}
-	}
 
+			//empty page tables remove
+
+
+			for(int k=0;k<size;k++){
+//				cprintf("in empty table\n");
+
+				bool isfree=1;
+			     int ret= get_page_table(e->env_page_directory,(void*)virtual_address,&pageTable);
+			     if(pageTable!=NULL){
+			    	 cprintf("%x \n",pageTable);
+			    	 for(int i=0;i<pageTableEntries;i++){
+			    		 if(pageTable[i]==0){
+			    			 continue;
+			    		 }
+			    		 else{
+			    			 isfree=0;
+			    			 break;
+			    		 }
+
+			    	 }
+			    	 if(isfree){
+			    	 kfree((void*)pageTable);
+			    	 pd_clear_page_dir_entry(e,(uint32)virtual_address);
+			    	 }
+			     }
+			}
+			virtual_address+=PAGE_SIZE;
+		}
+	tlbflush();
+	}
 	//This function should:
 	//1. Free ALL pages of the given range from the Page File
 	//2. Free ONLY pages that are resident in the working set from the memory
 	//3. Removes ONLY the empty page tables (i.e. not used) (no pages are mapped in the table)
 	//   remember that the page table was created using kmalloc so it should be removed using kfree()
 
-}
+
+
 
 void __freeMem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size)
 {

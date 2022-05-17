@@ -18,6 +18,7 @@
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
 const int NUM_OF_USER_PAGES = (USER_HEAP_MAX - USER_HEAP_START) / PAGE_SIZE;
+
 struct userHeap
 {
 	uint32 address;
@@ -190,8 +191,11 @@ void free(void* virtual_address)
 			userHeapPages[i].isFree = 1;
 			userHeapPages[i].headIndex = -1;
 			userHeapPages[i].tailIndex = -1;
+
 		}
-		sys_freeMem((uint32)virtual_address,userHeapPages[index].tailIndex-userHeapPages[index].headIndex);
+		int sentSize= currentPage.tailIndex-currentPage.headIndex;
+		sys_freeMem((uint32)virtual_address,sentSize);
+
 }
 
 
