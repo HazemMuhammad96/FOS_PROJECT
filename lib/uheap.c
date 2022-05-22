@@ -13,7 +13,6 @@
 //		"memory_manager.c", then switch back to the user mode here
 //	the allocateMem function is empty, make sure to implement it.
 
-
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
@@ -27,6 +26,13 @@ struct userHeap
 	int tailIndex;
 	uint32 size;
 } userHeapPages[(USER_HEAP_MAX - USER_HEAP_START) / PAGE_SIZE];
+
+struct userRange
+{
+	int start;
+	int end;
+};
+
 int nextAccssedPageIndex = 0;
 bool isUHeapInitialized = 0;
 
@@ -44,106 +50,111 @@ void initializeUHeap()
 	}
 	isUHeapInitialized = 1;
 }
-void* malloc(uint32 size)
+
+struct userRange nextFit(int pagesNumber)
 {
-	//TODO: [PROJECT 2022 - [9] User Heap malloc()] [User Side]
-	// Write your code here, remove the panic and write your code
-	//panic("malloc() is not implemented yet...!!");
-	sys_isUHeapPlacementStrategyNEXTFIT(); //check lw next fit
-	//cprintf("hnaaaaa");
-	initializeUHeap();
-	size = ROUNDUP(size, PAGE_SIZE);
-	int pagesNumber = size / PAGE_SIZE;
 	int pageFlag = 0;
-	int startIndex = -1;
-	int endIndex = -1;
-	if (USER_HEAP_MAX - userHeapPages[nextAccssedPageIndex].address < size)
-			{
-				return NULL;
-			}
 	int j = nextAccssedPageIndex;
 	bool currentCondition = j < NUM_OF_USER_PAGES;
 	int sizeCounter = 0;
-	// Steps:
-	//	1) Implement NEXT FIT strategy to search the heap for suitable space
-	//		to the required allocation size (space should be on 4 KB BOUNDARY)
+	int startIndex = -1;
+	int endIndex = -1;
 	for (; currentCondition; j++)
+	{
+		if (userHeapPages[j].isFree == 1)
 		{
-			if (userHeapPages[j].isFree == 1)
+			if (pageFlag == 0)
 			{
-				if (pageFlag == 0)
-				{
-					startIndex = j;
-				}
-
-				pageFlag++;
-			}
-			else
-			{
-				pageFlag = 0;
-				startIndex = -1;
-			}
-			if (pageFlag == pagesNumber)
-			{
-				endIndex = j;
-				nextAccssedPageIndex = j + 1;
-				if (nextAccssedPageIndex >= NUM_OF_USER_PAGES - 1)
-					nextAccssedPageIndex = 0;
-				break;
+				startIndex = j;
 			}
 
-			// cprintf("j : %d \t", j);
-			sizeCounter++;
-
-			if (sizeCounter >= NUM_OF_USER_PAGES)
-			{
-				return NULL;
-			}
-
-			if (j == NUM_OF_USER_PAGES - 1)
-			{
-				j = 0;
-				currentCondition = j < nextAccssedPageIndex;
-				pageFlag = 0;
-				startIndex = -1;
-			}
+			pageFlag++;
+		}
+		else
+		{
+			pageFlag = 0;
+			startIndex = -1;
+		}
+		if (pageFlag == pagesNumber)
+		{
+			endIndex = j;
+			nextAccssedPageIndex = j + 1;
+			if (nextAccssedPageIndex >= NUM_OF_USER_PAGES - 1)
+				nextAccssedPageIndex = 0;
+			break;
 		}
 
-	//pt_set_page_permissions(environment, virtual_address, PERM_WRITEABLE, PERM_PRESENT);
-	for (int j = startIndex; j <= endIndex; j++)
+		// cprintf("j : %d \t", j);
+		sizeCounter++;
+
+		if (sizeCounter >= NUM_OF_USER_PAGES)
 		{
-			userHeapPages[j].isFree = 0;
-			userHeapPages[j].headIndex = startIndex;
-			userHeapPages[j].tailIndex = endIndex;
-			userHeapPages[j].size=size;
+			struct userRange range = {-1, -1};
+			return range;
 		}
-	sys_allocateMem(userHeapPages[startIndex].address,pagesNumber);
 
+		if (j == NUM_OF_USER_PAGES - 1)
+		{
+			j = 0;
+			currentCondition = j < nextAccssedPageIndex;
+			pageFlag = 0;
+			startIndex = -1;
+		}
+	}
 
-	return (void *)userHeapPages[startIndex].address;
-	//	2) if no suitable space found, return NULL
-	//	 Else,
-	//	3) Call sys_allocateMem to invoke the Kernel for allocation
-	// 	4) Return pointer containing the virtual address of allocated space,
-	//
+	struct userRange range = {startIndex, endIndex};
 
-	//This function should find the space of the required range
-	// ******** ON 4KB BOUNDARY ******************* //
-
-	//Use sys_isUHeapPlacementStrategyNEXTFIT() and
-	//sys_isUHeapPlacementStrategyBESTFIT() for the bonus
-	//to check the current strategy
-
-
+	return range;
 }
 
-void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
+void *malloc(uint32 size)
+{
+
+	initializeUHeap();
+	size = ROUNDUP(size, PAGE_SIZE);
+	int pagesNumber = size / PAGE_SIZE;
+	int startIndex = -1;
+	int endIndex = -1;
+
+	if (USER_HEAP_MAX - userHeapPages[nextAccssedPageIndex].address < size)
+	{
+		return NULL;
+	}
+
+	struct userRange range;
+
+	if (sys_isUHeapPlacementStrategyNEXTFIT())
+		range = nextFit(pagesNumber);
+	// else if (sys_isUHeapPlacementStrategyBESTFIT())
+	// 	range = bestFit(pagesNumber);
+
+	startIndex = range.start;
+	endIndex = range.end;
+
+	if (startIndex == -1 && endIndex == -1)
+	{
+		return NULL;
+	}
+
+	for (int j = startIndex; j <= endIndex; j++)
+	{
+		userHeapPages[j].isFree = 0;
+		userHeapPages[j].headIndex = startIndex;
+		userHeapPages[j].tailIndex = endIndex;
+		userHeapPages[j].size = size;
+	}
+	sys_allocateMem(userHeapPages[startIndex].address, pagesNumber);
+
+	return (void *)userHeapPages[startIndex].address;
+}
+
+void *smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
 {
 	panic("smalloc() is not required ..!!");
 	return NULL;
 }
 
-void* sget(int32 ownerEnvID, char *sharedVarName)
+void *sget(int32 ownerEnvID, char *sharedVarName)
 {
 	panic("sget() is not required ..!!");
 	return 0;
@@ -172,41 +183,28 @@ int findPageIndexByVA(void *virtual_address)
 	return -1;
 }
 
-void free(void* virtual_address)
+void free(void *virtual_address)
 {
-	//TODO: [PROJECT 2022 - [11] User Heap free()] [User Side]
-	// Write your code here, remove the panic and write your code
-	//panic("free() is not implemented yet...!!");
-	virtual_address=ROUNDDOWN(virtual_address,PAGE_SIZE);
-	//you shold get the size of the given allocation using its address
-	//you need to call sys_freeMem()
-	//refer to the project presentation and documentation for details
+	virtual_address = ROUNDDOWN(virtual_address, PAGE_SIZE);
+
 	int index = findPageIndexByVA(virtual_address);
-		if (index == -1)
-			return;
+	if (index == -1)
+		return;
 
-		struct userHeap currentPage = userHeapPages[index];
-		//int sentSize= currentPage.tailIndex-currentPage.headIndex;
-		for (int i = currentPage.headIndex; i <= currentPage.tailIndex; i++)
-		{
-	//		unmap_frame(ptr_page_directory, (void *)kernelHeapPages[i].address);
-			userHeapPages[i].isFree = 1;
-			userHeapPages[i].headIndex = -1;
-			userHeapPages[i].tailIndex = -1;
-
-		}
-		sys_freeMem((uint32)virtual_address,userHeapPages[index].size);
-
-
-
+	struct userHeap currentPage = userHeapPages[index];
+	for (int i = currentPage.headIndex; i <= currentPage.tailIndex; i++)
+	{
+		userHeapPages[i].isFree = 1;
+		userHeapPages[i].headIndex = -1;
+		userHeapPages[i].tailIndex = -1;
+	}
+	sys_freeMem((uint32)virtual_address, userHeapPages[index].size);
 }
 
-
-void sfree(void* virtual_address)
+void sfree(void *virtual_address)
 {
 	panic("sfree() is not requried ..!!");
 }
-
 
 //===============
 // [2] realloc():
@@ -227,8 +225,8 @@ void sfree(void* virtual_address)
 
 void *realloc(void *virtual_address, uint32 new_size)
 {
-	//TODO: [PROJECT 2022 - BONUS3] User Heap Realloc [User Side]
-	// Write your code here, remove the panic and write your code
+	// TODO: [PROJECT 2022 - BONUS3] User Heap Realloc [User Side]
+	//  Write your code here, remove the panic and write your code
 	panic("realloc() is not implemented yet...!!");
 
 	return NULL;

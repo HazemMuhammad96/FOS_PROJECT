@@ -197,7 +197,6 @@ void *kmalloc(unsigned int size)
 			return NULL;
 	}
 
-	cprintf("\n%d Pages allocated!\n", pagesNumber);
 
 	return (void *)kernelHeapPages[startIndex].address;
 }
@@ -230,7 +229,7 @@ void kfree(void *virtual_address)
 		kernelHeapPages[i].headIndex = -1;
 		kernelHeapPages[i].tailIndex = -1;
 	}
-	cprintf("\nvirtual address freed\n");
+
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)

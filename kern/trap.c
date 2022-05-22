@@ -530,6 +530,18 @@ void pagePlacement(struct Env *curenv, uint32 fault_va)
 		}
 	}
 
+	int size = curenv->page_WS_max_size;
+	for (int i = 0; i < size; i++)
+	{
+		if (curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].empty)
+			break;
+		else if (curenv->ptr_pageWorkingSet[i].empty)
+		{
+			curenv->page_last_WS_index = i;
+			break;
+		}
+	}
+
 	env_page_ws_set_entry(curenv, curenv->page_last_WS_index, fault_va);
 	if (curenv->page_last_WS_index == curenv->page_WS_max_size - 1)
 	{
