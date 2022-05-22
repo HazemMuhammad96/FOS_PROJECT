@@ -103,10 +103,11 @@ struct kernelRange bestFit(int pagesNumber)
 	int pageFlag = 0;
 	int sizeCounter = 0;
 	int startIndex = -1;
-	int endIndex = -1;
-	int rangeIndex = 0;
-
-	struct kernelRange range[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE];
+	int counterIndex = -1;
+	int goodEndIndex = -1;
+	int bestSize = -1;
+	// struct kernelRange freeSpaces[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE];
+	struct kernelRange bestStruct = {-1, -1};
 
 	for (int i = 0; i < NUM_OF_PAGES; i++)
 	{
@@ -118,33 +119,78 @@ struct kernelRange bestFit(int pagesNumber)
 				startIndex = i;
 			}
 
+			if (pageFlag >= pagesNumber)
+			{
+				counterIndex = i;
+			}
 
 			pageFlag++;
 		}
 		else
 		{
-			// struct kernelRange tempRange = {startIndex, endIndex};
-			// range[rangeIndex] = tempRange;
-			rangeIndex++;
+			if (counterIndex != -1)
+			{
+				// struct kernelRange k = {startIndex, endIndex};
+				// freeSpaces[freeSpacesIndex++] = k;
+				// freeSpacesIndex++;
+
+				int currentSize = counterIndex - startIndex;
+
+				if (currentSize < bestSize || bestSize == -1)
+				{
+					bestSize = currentSize;
+					bestStruct.start = startIndex;
+					bestStruct.end = goodEndIndex;
+				}
+			}
+
 			pageFlag = 0;
 			startIndex = -1;
+			counterIndex = -1;
+			goodEndIndex = -1;
+		}
+
+		if (pageFlag == pagesNumber)
+		{
+			goodEndIndex = i;
+			counterIndex = i;
+		}
+
+		if (i == NUM_OF_PAGES - 1)
+		{
+			if (counterIndex != -1)
+			{
+
+				int currentSize = counterIndex - startIndex;
+
+				if (currentSize < bestSize || bestSize == -1)
+				{
+					bestSize = currentSize;
+					bestStruct.start = startIndex;
+					bestStruct.end = goodEndIndex;
+				}
+			}
+
+			pageFlag = 0;
+			startIndex = -1;
+			counterIndex = -1;
+			goodEndIndex = -1;
 		}
 	}
 
-	cprintf("rangeIndex : %d\n", rangeIndex);
-
 	// int smallestRange = 0;
-	// for (int i = 0; i < rangeIndex; i++)
+	// for (int i = 0; i < freeSpacesIndex; i++)
 	// {
-	// 	if (range[i].end - range[i].start < range[smallestRange].end - range[smallestRange].start)
+
+	// 	if (freeSpaces[i].end - freeSpaces[i].start < freeSpaces[smallestRange].end - freeSpaces[smallestRange].start)
 	// 	{
+	// 		cprintf("smallestRange : %d \t", smallestRange);
 	// 		smallestRange = i;
 	// 	}
 	// }
 
-	// struct kernelRange bestRange = {range[smallestRange].start, range[smallestRange].end};
-	struct kernelRange bestRange = {1, 5};
-	return bestRange;
+	// struct kernelRange range = {startIndex, endIndex};
+	return bestStruct;
 }
 
 void *kmalloc(unsigned int size)
@@ -171,6 +217,7 @@ void *kmalloc(unsigned int size)
 	startIndex = range.start;
 	endIndex = range.end;
 
+
 	if (startIndex == -1 && endIndex == -1)
 	{
 		return NULL;
@@ -192,7 +239,6 @@ void *kmalloc(unsigned int size)
 		if (ret == E_NO_MEM)
 			return NULL;
 	}
-
 
 	return (void *)kernelHeapPages[startIndex].address;
 }
@@ -225,7 +271,6 @@ void kfree(void *virtual_address)
 		kernelHeapPages[i].headIndex = -1;
 		kernelHeapPages[i].tailIndex = -1;
 	}
-
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
@@ -239,7 +284,6 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 		currentFrame = get_frame_info(ptr_page_directory, (void *)i, &pageTable);
 		if (currentFrame != NULL && to_physical_address(currentFrame) == physical_address)
 			return i;
-		
 	}
 
 	return 0;
