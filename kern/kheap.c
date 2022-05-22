@@ -114,14 +114,10 @@ struct kernelRange bestFit(int pagesNumber)
 		if (kernelHeapPages[i].isFree == 1)
 		{
 			if (pageFlag == 0)
-			{
 				startIndex = i;
-			}
 
 			if (pageFlag >= pagesNumber)
-			{
 				counterIndex = i;
-			}
 
 			pageFlag++;
 		}
@@ -129,7 +125,6 @@ struct kernelRange bestFit(int pagesNumber)
 		{
 			if (counterIndex != -1)
 			{
-
 
 				int currentSize = counterIndex - startIndex;
 
@@ -202,12 +197,11 @@ void *kmalloc(unsigned int size)
 	startIndex = range.start;
 	endIndex = range.end;
 
-
 	if (startIndex == -1 && endIndex == -1)
 	{
 		return NULL;
 	}
-	//
+
 	for (int j = startIndex; j <= endIndex; j++)
 	{
 		kernelHeapPages[j].isFree = 0;
