@@ -506,6 +506,23 @@ uint32 try(struct Env *curenv, bool isTryTwo)
 	return -1;
 }
 // old logic end
+void checkAvailableSize()
+{
+	int counter = 0;
+	int size = curenv->page_WS_max_size;
+	while (counter < size)
+	{
+		if (curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].empty)
+			break;
+		if (curenv->ptr_pageWorkingSet[counter].empty)
+		{
+			curenv->page_last_WS_index = counter;
+			break;
+		}
+
+		counter++;
+	}
+}
 
 void pagePlacement(struct Env *curenv, uint32 fault_va)
 {
@@ -524,23 +541,13 @@ void pagePlacement(struct Env *curenv, uint32 fault_va)
 		if (ret == E_PAGE_NOT_EXIST_IN_PF)
 		{
 			if (fault_va < USTACKBOTTOM || fault_va >= USTACKTOP)
-				panic("Page not exist in PF");
+				panic("Page is not exist in PageFile");
 
 			pf_add_empty_env_page(curenv, fault_va, 0);
 		}
 	}
 
-	int size = curenv->page_WS_max_size;
-	for (int i = 0; i < size; i++)
-	{
-		if (curenv->ptr_pageWorkingSet[curenv->page_last_WS_index].empty)
-			break;
-		else if (curenv->ptr_pageWorkingSet[i].empty)
-		{
-			curenv->page_last_WS_index = i;
-			break;
-		}
-	}
+	checkAvailableSize();
 
 	env_page_ws_set_entry(curenv, curenv->page_last_WS_index, fault_va);
 	if (curenv->page_last_WS_index == curenv->page_WS_max_size - 1)

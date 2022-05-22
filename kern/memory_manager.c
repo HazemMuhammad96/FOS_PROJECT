@@ -764,7 +764,6 @@ void deleteFreePageTables(struct Env *e, uint32 virtual_address)
 void freeMem(struct Env *e, uint32 virtual_address, uint32 size)
 {
 	size = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE ;
-	cprintf("Sizeee: %d\n", size);
 	for (int i = 0; i < size; i++)
 	{
 		freePageFiles(e, virtual_address);
