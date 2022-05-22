@@ -734,8 +734,8 @@ void freeResidentWorkingSetElements(struct Env *e, uint32 virtual_address)
 
 bool isPageTableEmpty(uint32 *pageTablePointer)
 {
-	// bool empty = 1;
-	for (int j = 0; j < 1024; j++)
+	int pageTableSize = 1024;
+	for (int j = 0; j < pageTableSize; j++)
 	{
 		if (pageTablePointer[j] != 0)
 			return 0;
@@ -743,6 +743,7 @@ bool isPageTableEmpty(uint32 *pageTablePointer)
 
 	return 1;
 }
+
 void deleteFreePageTables(struct Env *e, uint32 virtual_address)
 {
 
@@ -752,29 +753,21 @@ void deleteFreePageTables(struct Env *e, uint32 virtual_address)
 	{
 		if (isPageTableEmpty(pageTablePointer))
 		{
-			e->env_page_directory[PDX(virtual_address)] = 0;
+			pd_clear_page_dir_entry(e, virtual_address);
 			kfree((void *)pageTablePointer);
 		}
 	}
 }
 void freeMem(struct Env *e, uint32 virtual_address, uint32 size)
 {
-	size = ROUNDUP(size, PAGE_SIZE);
-	size = size / PAGE_SIZE;
-	// This function should:
+	size = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 	cprintf("Size: %d\n", size);
-	for (; size > 0; size--)
+	for (int i = 0; i < size; i++)
 	{
-		// 1. Free ALL pages of the given range from the Page File
 		freePageFiles(e, virtual_address);
-		// 2. Free ONLY pages that are resident in the working set from the memory
 		freeResidentWorkingSetElements(e, virtual_address);
-		// 3. Removes ONLY the empty page tables (i.e. not used) (no pages are mapped in the table)
 		deleteFreePageTables(e, virtual_address);
-
 		virtual_address += PAGE_SIZE;
-		if (virtual_address == USER_HEAP_MAX)
-			virtual_address = USER_HEAP_START;
 	}
 }
 // This function should:
