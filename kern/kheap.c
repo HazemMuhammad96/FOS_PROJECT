@@ -104,9 +104,8 @@ struct kernelRange bestFit(int pagesNumber)
 	int sizeCounter = 0;
 	int startIndex = -1;
 	int counterIndex = -1;
-	int goodEndIndex = -1;
+	int endIndex = -1;
 	int bestSize = -1;
-	// struct kernelRange freeSpaces[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE];
 	struct kernelRange bestStruct = {-1, -1};
 
 	for (int i = 0; i < NUM_OF_PAGES; i++)
@@ -130,9 +129,7 @@ struct kernelRange bestFit(int pagesNumber)
 		{
 			if (counterIndex != -1)
 			{
-				// struct kernelRange k = {startIndex, endIndex};
-				// freeSpaces[freeSpacesIndex++] = k;
-				// freeSpacesIndex++;
+
 
 				int currentSize = counterIndex - startIndex;
 
@@ -140,19 +137,19 @@ struct kernelRange bestFit(int pagesNumber)
 				{
 					bestSize = currentSize;
 					bestStruct.start = startIndex;
-					bestStruct.end = goodEndIndex;
+					bestStruct.end = endIndex;
 				}
 			}
 
 			pageFlag = 0;
 			startIndex = -1;
 			counterIndex = -1;
-			goodEndIndex = -1;
+			endIndex = -1;
 		}
 
 		if (pageFlag == pagesNumber)
 		{
-			goodEndIndex = i;
+			endIndex = i;
 			counterIndex = i;
 		}
 
@@ -167,29 +164,17 @@ struct kernelRange bestFit(int pagesNumber)
 				{
 					bestSize = currentSize;
 					bestStruct.start = startIndex;
-					bestStruct.end = goodEndIndex;
+					bestStruct.end = endIndex;
 				}
 			}
 
 			pageFlag = 0;
 			startIndex = -1;
 			counterIndex = -1;
-			goodEndIndex = -1;
+			endIndex = -1;
 		}
 	}
 
-	// int smallestRange = 0;
-	// for (int i = 0; i < freeSpacesIndex; i++)
-	// {
-
-	// 	if (freeSpaces[i].end - freeSpaces[i].start < freeSpaces[smallestRange].end - freeSpaces[smallestRange].start)
-	// 	{
-	// 		cprintf("smallestRange : %d \t", smallestRange);
-	// 		smallestRange = i;
-	// 	}
-	// }
-
-	// struct kernelRange range = {startIndex, endIndex};
 	return bestStruct;
 }
 
