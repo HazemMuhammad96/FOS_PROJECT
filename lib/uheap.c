@@ -121,12 +121,7 @@ void *malloc(uint32 size)
 		return NULL;
 	}
 
-	struct userRange range;
-
-	if (sys_isUHeapPlacementStrategyNEXTFIT())
-		range = nextFit(pagesNumber);
-	// else if (sys_isUHeapPlacementStrategyBESTFIT())
-	// 	range = bestFit(pagesNumber);
+	struct userRange range = nextFit(pagesNumber);
 
 	startIndex = range.start;
 	endIndex = range.end;
