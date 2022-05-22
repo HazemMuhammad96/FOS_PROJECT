@@ -13,14 +13,18 @@ struct kernelHeap
 	int headIndex;
 	int tailIndex;
 } kernelHeapPages[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE];
+
+struct kernelRange
+{
+	int start;
+	int end;
+};
+
 int nextAccssedPageIndex = 0;
 bool isKHeapInitialized = 0;
 
 void initializeKHeap()
 {
-	if (isKHeapInitialized == 1)
-		return;
-
 	int i = 0;
 	for (uint32 address = KERNEL_HEAP_START; address < KERNEL_HEAP_MAX; address += PAGE_SIZE)
 	{
@@ -28,28 +32,24 @@ void initializeKHeap()
 		kernelHeapPages[i].isFree = 1;
 		i++;
 	}
+}
+
+void initializeKHeapOnce()
+{
+	if (isKHeapInitialized == 1)
+		return;
+	initializeKHeap();
 	isKHeapInitialized = 1;
 }
 
-void *kmalloc(unsigned int size)
+struct kernelRange nextFit(int pagesNumber)
 {
-
-	initializeKHeap();
-	size = ROUNDUP(size, PAGE_SIZE);
-
-	int pagesNumber = size / PAGE_SIZE;
 	int pageFlag = 0;
-	int startIndex = -1;
-	int endIndex = -1;
-
-	if (KERNEL_HEAP_MAX - kernelHeapPages[nextAccssedPageIndex].address < size)
-	{
-		return NULL;
-	}
-
 	int j = nextAccssedPageIndex;
 	bool currentCondition = j < NUM_OF_PAGES;
 	int sizeCounter = 0;
+	int startIndex = -1;
+	int endIndex = -1;
 	for (; currentCondition; j++)
 	{
 		if (kernelHeapPages[j].isFree == 1)
@@ -80,7 +80,8 @@ void *kmalloc(unsigned int size)
 
 		if (sizeCounter >= NUM_OF_PAGES)
 		{
-			return NULL;
+			struct kernelRange range = {-1, -1};
+			return range;
 		}
 
 		if (j == NUM_OF_PAGES - 1)
@@ -92,7 +93,92 @@ void *kmalloc(unsigned int size)
 		}
 	}
 
+	struct kernelRange range = {startIndex, endIndex};
 
+	return range;
+}
+
+struct kernelRange bestFit(int pagesNumber)
+{
+	int pageFlag = 0;
+	int sizeCounter = 0;
+	int startIndex = -1;
+	int endIndex = -1;
+	int rangeIndex = 0;
+
+	struct kernelRange range[(KERNEL_HEAP_MAX - KERNEL_HEAP_START) / PAGE_SIZE];
+
+	for (int i = 0; i < NUM_OF_PAGES; i++)
+	{
+
+		if (kernelHeapPages[i].isFree == 1)
+		{
+			if (pageFlag == 0)
+			{
+				startIndex = i;
+			}
+
+			if (pageFlag >= pagesNumber)
+			{
+				endIndex = i;
+			}
+
+			pageFlag++;
+		}
+		else
+		{
+			// struct kernelRange tempRange = {startIndex, endIndex};
+			// range[rangeIndex] = tempRange;
+			rangeIndex++;
+			pageFlag = 0;
+			startIndex = -1;
+		}
+	}
+
+	cprintf("rangeIndex : %d\n", rangeIndex);
+
+	// int smallestRange = 0;
+	// for (int i = 0; i < rangeIndex; i++)
+	// {
+	// 	if (range[i].end - range[i].start < range[smallestRange].end - range[smallestRange].start)
+	// 	{
+	// 		smallestRange = i;
+	// 	}
+	// }
+
+	// struct kernelRange bestRange = {range[smallestRange].start, range[smallestRange].end};
+	struct kernelRange bestRange = {1, 5};
+	return bestRange;
+}
+
+void *kmalloc(unsigned int size)
+{
+
+	initializeKHeapOnce();
+	size = ROUNDUP(size, PAGE_SIZE);
+
+	int pagesNumber = size / PAGE_SIZE;
+	int startIndex = -1;
+	int endIndex = -1;
+
+	if (KERNEL_HEAP_MAX - kernelHeapPages[nextAccssedPageIndex].address < size)
+	{
+		return NULL;
+	}
+	struct kernelRange range;
+
+	if (isKHeapPlacementStrategyNEXTFIT())
+		range = nextFit(pagesNumber);
+	else if (isKHeapPlacementStrategyBESTFIT())
+		range = bestFit(pagesNumber);
+
+	startIndex = range.start;
+	endIndex = range.end;
+
+	if (startIndex == -1 && endIndex == -1)
+	{
+		return NULL;
+	}
 	//
 	for (int j = startIndex; j <= endIndex; j++)
 	{
@@ -111,28 +197,13 @@ void *kmalloc(unsigned int size)
 			return NULL;
 	}
 
-	//cprintf("\nsize : %d \n", pagesNumber);
-	//cprintf("Start Address Index: %d\naddress: %x\thead: %x\ttail: %x\n",
-			//startIndex, kernelHeapPages[startIndex].address,
-			//kernelHeapPages[startIndex].headIndex, kernelHeapPages[startIndex].tailIndex);
-	//cprintf("End Address Index: %d\naddress: %x\thead: %x\ttail: %x\n\n",
-			//endIndex, kernelHeapPages[endIndex].address,
-			//kernelHeapPages[endIndex].headIndex, kernelHeapPages[endIndex].tailIndex);
+	cprintf("\n%d Pages allocated!\n", pagesNumber);
 
 	return (void *)kernelHeapPages[startIndex].address;
-
-	// TODO: [PROJECT 2022 - BONUS1] Implement a Kernel allocation strategy
-	//  Instead of the Next allocation/deallocation, implement
-	//  BEST FIT strategy
-	//  use "isKHeapPlacementStrategyBESTFIT() ..."
-	//  and "isKHeapPlacementStrategyNEXTFIT() ..."
-	// functions to check the current strategy
-	// change this "return" according to your answer
 }
 
 int findPageIndexByVA(void *virtual_address)
 {
-	// int va = (int)virtual_address;
 	int va = (int)ROUNDDOWN(virtual_address, PAGE_SIZE);
 
 	for (int i = 0; i < NUM_OF_PAGES; i++)
@@ -159,37 +230,24 @@ void kfree(void *virtual_address)
 		kernelHeapPages[i].headIndex = -1;
 		kernelHeapPages[i].tailIndex = -1;
 	}
+	cprintf("\nvirtual address freed\n");
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
 {
-	// for (int i = 0; i < NUM_OF_PAGES; i+=PAGE_SIZE)
-	// {
-	// 	if (kheap_physical_address(kernelHeapPages[i].address) == physical_address)
-	// 		return (unsigned int)kernelHeapPages[i].address;
-	// }
-
-	// return 0;
 
 	struct Frame_Info *currentFrame;
-	uint32 *ptr_page_table;
+	uint32 *pageTable;
 
-	for (uint32 i = KERNEL_HEAP_START; i <=kernelHeapPages[nextAccssedPageIndex].address; i += PAGE_SIZE)
+	for (uint32 i = KERNEL_HEAP_START; i <= kernelHeapPages[nextAccssedPageIndex].address; i += PAGE_SIZE)
 	{
-		currentFrame = NULL;
-		currentFrame = get_frame_info(ptr_page_directory, (void *)i, &ptr_page_table);
+		currentFrame = get_frame_info(ptr_page_directory, (void *)i, &pageTable);
 		if (currentFrame != NULL && to_physical_address(currentFrame) == physical_address)
-		{
 			return i;
-		}
+		
 	}
 
 	return 0;
-}
-
-uint32 OFFSET(uint32 logicalAddress)
-{
-	return (logicalAddress << 20) >> 20;
 }
 
 uint32 *getPageTable(uint32 logicalAddress)
@@ -210,7 +268,6 @@ uint32 getFrame(unsigned int logicalAddress)
 	uint32 PageIndex = PTX(logicalAddress);
 	uint32 pageTableEntry = pageTable[PageIndex];
 
-
 	uint32 frameNumber = (pageTableEntry >> 12);
 
 	return frameNumber;
@@ -218,15 +275,5 @@ uint32 getFrame(unsigned int logicalAddress)
 
 unsigned int kheap_physical_address(unsigned int virtual_address)
 {
-
-	uint32 frameNumber = getFrame(virtual_address);
-
-
-	// uint32 offset = OFFSET(virtual_address);
-
-	uint32 physicalAddress = frameNumber * PAGE_SIZE;
-
-
-
-	return physicalAddress;
+	return getFrame(virtual_address) * PAGE_SIZE;
 }
