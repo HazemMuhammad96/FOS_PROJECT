@@ -118,10 +118,6 @@ struct kernelRange bestFit(int pagesNumber)
 				startIndex = i;
 			}
 
-			if (pageFlag >= pagesNumber)
-			{
-				endIndex = i;
-			}
 
 			pageFlag++;
 		}

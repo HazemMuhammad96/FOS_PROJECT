@@ -520,17 +520,19 @@ int get_page_table(uint32 *ptr_page_directory, const void *virtual_address, uint
 	}
 }
 
+
 void *create_page_table(uint32 *ptr_page_directory, const uint32 virtual_address)
 {
-	uint32 maxSize = 1024;
+
 	uint32 *locatedAddress = kmalloc(PAGE_SIZE);
-	memset(locatedAddress, 0, maxSize);
+	memset(locatedAddress, 0, PAGE_SIZE);
 	uint32 physicalAddress = kheap_physical_address((unsigned int)locatedAddress);
 
 	ptr_page_directory[PDX(virtual_address)] = CONSTRUCT_ENTRY(physicalAddress, PERM_WRITEABLE | PERM_PRESENT | PERM_USER);
 	tlbflush();
 	return (void *)locatedAddress;
 }
+
 
 void __static_cpt(uint32 *ptr_page_directory, const uint32 virtual_address, uint32 **ptr_page_table)
 {
@@ -758,9 +760,10 @@ void deleteFreePageTables(struct Env *e, uint32 virtual_address)
 		}
 	}
 }
+
 void freeMem(struct Env *e, uint32 virtual_address, uint32 size)
 {
-	size = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	size = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE ;
 	cprintf("Sizeee: %d\n", size);
 	for (int i = 0; i < size; i++)
 	{
