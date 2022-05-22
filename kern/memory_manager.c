@@ -542,7 +542,6 @@ void * create_page_table(uint32 *ptr_page_directory, const uint32 virtual_addres
 	ptr_page_directory[PDX(virtual_address)]=CONSTRUCT_ENTRY(physicalAddress, PERM_WRITEABLE | PERM_PRESENT | PERM_USER);
 	tlbflush();
 	return (void*)locatedAddress;
-
 }
 
 
