@@ -115,6 +115,7 @@ void _main(void)
 
 			int numOFEmptyLocInWS = CheckAndCountEmptyLocInWS(myEnv);
 			int CurrFreeFrames = sys_calculate_free_frames() + sys_calculate_modified_frames() - numOFEmptyLocInWS;
+			cprintf("Free Frames Before Freeing = %d\n", CurrFreeFrames - InitFreeFrames);
 			assert(CurrFreeFrames - InitFreeFrames == 0) ;
 		}
 		else if (Iteration == 3 )

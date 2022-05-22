@@ -761,13 +761,15 @@ void deleteFreePageTables(struct Env *e, uint32 virtual_address)
 void freeMem(struct Env *e, uint32 virtual_address, uint32 size)
 {
 	size = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	cprintf("Size: %d\n", size);
+	cprintf("Sizeee: %d\n", size);
 	for (int i = 0; i < size; i++)
 	{
 		freePageFiles(e, virtual_address);
 		freeResidentWorkingSetElements(e, virtual_address);
 		deleteFreePageTables(e, virtual_address);
 		virtual_address += PAGE_SIZE;
+		if (virtual_address == USER_HEAP_MAX)
+			virtual_address = USER_HEAP_START;
 	}
 }
 // This function should:

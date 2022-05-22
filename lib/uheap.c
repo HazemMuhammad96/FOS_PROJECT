@@ -188,8 +188,6 @@ void free(void *virtual_address)
 	virtual_address = ROUNDDOWN(virtual_address, PAGE_SIZE);
 
 	int index = findPageIndexByVA(virtual_address);
-	if (index == -1)
-		return;
 
 	struct userHeap currentPage = userHeapPages[index];
 	for (int i = currentPage.headIndex; i <= currentPage.tailIndex; i++)
